@@ -8,11 +8,7 @@ const port = 3000;
 
 const winsInRow = 3;
 
-let results = {
-  numGuessesRemaining: winsInRow,
-  guessHistory: [],
-  gameStatus: 0,
-};
+let sessions = {};
 
 app.use(cors());
 
@@ -23,15 +19,51 @@ app.get("/", (req, res) => {
   res.send("Hello World, from express app");
 });
 
+app.post("/startgame", (req, res) => {
+  if (!req.body.username) {
+    res.send(400);
+    return;
+  }
+
+  let id = createGuid();
+  sessions[id] = {
+    numGuessesRemaining: winsInRow,
+    guessHistory: [],
+    gameStatus: 0,
+    username: req.body.username,
+  };
+
+  res.send(id);
+});
+
 app.post("/play", (req, res) => {
+  // Check if session exists
+  const sessionId = req.headers["x-sessionid"];
+  if (!sessionId || !sessions[sessionId]) {
+    res.send(403);
+    return;
+  }
+
+  // const state = sessions[sessionId];
+
   let headTails = req.body.choice;
-  if (results.gameStatus !== 0) reset();
+
   if (!validate(headTails)) {
     res.send(400);
     return;
   }
-  coinFlip(headTails);
-  res.send(results);
+
+  const isWin = coinFlip(headTails);
+  const game = sessions[sessionId];
+
+  game.guessHistory.push(headTails);
+  game.numGuessesRemaining--;
+  game.gameStatus = !isWin ? 2 : game.numGuessesRemaining === 0 ? 1 : 0;
+  res.send(sessions[sessionId]);
+
+  if (game.gameStatus === 1 || game.gameStatus === 2) {
+    delete sessions[sessionId];
+  }
 });
 
 app.listen(port, () =>
@@ -48,19 +80,27 @@ const validate = function (value) {
 
 const coinFlip = function (value) {
   let coin = Math.round(Math.random());
-  if (value === coin) {
-    results.numGuessesRemaining -= 1;
-    results.guessHistory.push(value);
-  } else {
-    results.gameStatus = 2;
-  }
-  if (results.numGuessesRemaining === 0) {
-    results.gameStatus = 1;
-  }
+  return value === coin;
 };
 
-const reset = function () {
-  results.numGuessesRemaining = winsInRow;
-  results.guessHistory = [];
-  results.gameStatus = 0;
-};
+function createGuid() {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .substring(1);
+  }
+  return (
+    s4() +
+    s4() +
+    "-" +
+    s4() +
+    "-" +
+    s4() +
+    "-" +
+    s4() +
+    "-" +
+    s4() +
+    s4() +
+    s4()
+  );
+}
