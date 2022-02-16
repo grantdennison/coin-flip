@@ -8,6 +8,12 @@ const port = 3000;
 
 const winsInRow = 3;
 
+const GAME_STATUS = {
+  Ready: 0,
+  Won: 1,
+  Lost: 2,
+};
+
 let sessions = {};
 
 app.use(cors());
@@ -29,7 +35,7 @@ app.post("/startgame", (req, res) => {
   sessions[id] = {
     numGuessesRemaining: winsInRow,
     guessHistory: [],
-    gameStatus: 0,
+    gameStatus: GAME_STATUS.Ready,
     username: req.body.username,
   };
 
